@@ -2,26 +2,47 @@ name: Keep Multiple Supabase Projects Alive
 
 on:
   schedule:
-    - cron: '0 0 * * 2,5'
+    - cron: "0 0 * * 2,5"
   workflow_dispatch:
 
 jobs:
   ping:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        # Add a unique identifier suffix for each database here
-        id: [1, 2] 
-    steps:
-      - name: Ping Supabase REST API
-        run: |
-          # Dynamically fetch the numbered secrets based on the matrix ID
-          URL_SECRET="SUPABASE_URL_${{ matrix.id }}"
-          KEY_SECRET="SUPABASE_ANON_KEY_${{ matrix.id }}"
-          
-          URL="${!URL_SECRET}"
-          KEY="${!KEY_SECRET}"
 
-          curl -i -X GET "${URL}/rest/v1/" \
-            -H "apikey: ${KEY}" \
-            -H "Authorization: Bearer ${KEY}"
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - project: 1
+            url_secret: SUPABASE_URL_1
+            key_secret: SUPABASE_ANON_KEY_1
+
+          - project: 2
+            url_secret: SUPABASE_URL_2
+            key_secret: SUPABASE_ANON_KEY_2
+
+    steps:
+      - name: Ping Supabase Project ${{ matrix.project }}
+        env:
+          SUPABASE_URL: ${{ secrets[matrix.url_secret] }}
+          SUPABASE_KEY: ${{ secrets[matrix.key_secret] }}
+        run: |
+          if [ -z "$SUPABASE_URL" ]; then
+            echo "SUPABASE_URL is missing for project ${{ matrix.project }}"
+            exit 1
+          fi
+
+          if [ -z "$SUPABASE_KEY" ]; then
+            echo "SUPABASE_ANON_KEY is missing for project ${{ matrix.project }}"
+            exit 1
+          fi
+
+          curl --fail-with-body \
+            --show-error \
+            --silent \
+            "${SUPABASE_URL}/rest/v1/keep_alive?select=id&limit=1" \
+            -H "apikey: ${SUPABASE_KEY}" \
+            -H "Authorization: Bearer ${SUPABASE_KEY}"
+
+          echo
+          echo "Project ${{ matrix.project }} ping completed successfully."
