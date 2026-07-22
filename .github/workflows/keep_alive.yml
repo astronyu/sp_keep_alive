@@ -2,53 +2,46 @@ name: Keep Multiple Supabase Projects Alive
 
 on:
   schedule:
+    # Runs at 00:00 UTC every Tuesday and Friday
     - cron: "0 0 * * 2,5"
+
   workflow_dispatch:
 
 jobs:
   ping:
-    name: Ping Supabase Project ${{ matrix.project }}
+    name: Ping Supabase Project ${{ matrix.id }}
     runs-on: ubuntu-latest
 
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - project: 1
-            url: SUPABASE_URL_1
-            key: SUPABASE_ANON_KEY_1
-
-          - project: 2
-            url: SUPABASE_URL_2
-            key: SUPABASE_ANON_KEY_2
+        id: [1, 2]
 
     steps:
-      - name: Validate secrets
+      - name: Ping Supabase REST API
         env:
-          SUPABASE_URL: ${{ secrets[matrix.url] }}
-          SUPABASE_KEY: ${{ secrets[matrix.key] }}
+          SUPABASE_URL: ${{ secrets[format('SUPABASE_URL_{0}', matrix.id)] }}
+          SUPABASE_KEY: ${{ secrets[format('SUPABASE_ANON_KEY_{0}', matrix.id)] }}
         run: |
           if [ -z "$SUPABASE_URL" ]; then
-            echo "::error::SUPABASE_URL_${{ matrix.project }} is empty or unavailable"
+            echo "::error::SUPABASE_URL_${{ matrix.id }} is missing or unavailable."
             exit 1
           fi
 
           if [ -z "$SUPABASE_KEY" ]; then
-            echo "::error::SUPABASE_ANON_KEY_${{ matrix.project }} is empty or unavailable"
+            echo "::error::SUPABASE_ANON_KEY_${{ matrix.id }} is missing or unavailable."
             exit 1
           fi
 
-          echo "Secrets for project ${{ matrix.project }} are available."
+          echo "Pinging Supabase project ${{ matrix.id }}..."
 
-      - name: Ping Supabase REST API
-        env:
-          SUPABASE_URL: ${{ secrets[matrix.url] }}
-          SUPABASE_KEY: ${{ secrets[matrix.key] }}
-        run: |
-          curl --fail-with-body --silent --show-error \
+          curl --fail-with-body \
+            --silent \
+            --show-error \
+            --request GET \
             "${SUPABASE_URL}/rest/v1/keep_alive?select=id&limit=1" \
-            -H "apikey: ${SUPABASE_KEY}" \
-            -H "Authorization: Bearer ${SUPABASE_KEY}"
+            --header "apikey: ${SUPABASE_KEY}" \
+            --header "Authorization: Bearer ${SUPABASE_KEY}"
 
           echo
-          echo "Supabase project ${{ matrix.project }} pinged successfully."
+          echo "Supabase project ${{ matrix.id }} pinged successfully."
