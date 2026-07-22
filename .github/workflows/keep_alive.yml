@@ -2,26 +2,53 @@ name: Keep Multiple Supabase Projects Alive
 
 on:
   schedule:
-    - cron: '0 0 * * 2,5'
+    - cron: "0 0 * * 2,5"
   workflow_dispatch:
 
 jobs:
   ping:
+    name: Ping Supabase Project ${{ matrix.project }}
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        # Add a unique identifier suffix for each database here
-        id: [1, 2] 
-    steps:
-      - name: Ping Supabase REST API
-        run: |
-          # Dynamically fetch the numbered secrets based on the matrix ID
-          URL_SECRET="SUPABASE_URL_${{ matrix.id }}"
-          KEY_SECRET="SUPABASE_ANON_KEY_${{ matrix.id }}"
-          
-          URL="${!URL_SECRET}"
-          KEY="${!KEY_SECRET}"
 
-          curl -i -X GET "${URL}/rest/v1/" \
-            -H "apikey: ${KEY}" \
-            -H "Authorization: Bearer ${KEY}"
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - project: 1
+            url: SUPABASE_URL_1
+            key: SUPABASE_ANON_KEY_1
+
+          - project: 2
+            url: SUPABASE_URL_2
+            key: SUPABASE_ANON_KEY_2
+
+    steps:
+      - name: Validate secrets
+        env:
+          SUPABASE_URL: ${{ secrets[matrix.url] }}
+          SUPABASE_KEY: ${{ secrets[matrix.key] }}
+        run: |
+          if [ -z "$SUPABASE_URL" ]; then
+            echo "::error::SUPABASE_URL_${{ matrix.project }} is empty or unavailable"
+            exit 1
+          fi
+
+          if [ -z "$SUPABASE_KEY" ]; then
+            echo "::error::SUPABASE_ANON_KEY_${{ matrix.project }} is empty or unavailable"
+            exit 1
+          fi
+
+          echo "Secrets for project ${{ matrix.project }} are available."
+
+      - name: Ping Supabase REST API
+        env:
+          SUPABASE_URL: ${{ secrets[matrix.url] }}
+          SUPABASE_KEY: ${{ secrets[matrix.key] }}
+        run: |
+          curl --fail-with-body --silent --show-error \
+            "${SUPABASE_URL}/rest/v1/keep_alive?select=id&limit=1" \
+            -H "apikey: ${SUPABASE_KEY}" \
+            -H "Authorization: Bearer ${SUPABASE_KEY}"
+
+          echo
+          echo "Supabase project ${{ matrix.project }} pinged successfully."
