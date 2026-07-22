@@ -1,17 +1,27 @@
-name: Keep Supabase Alive
+name: Keep Multiple Supabase Projects Alive
 
 on:
   schedule:
-    # Run at midnight (0 0 * *) on Sunday (0) and Friday(5)
-    - cron: '0 1 * * 2,6'
+    - cron: '0 0 * * 2,5'
   workflow_dispatch:
 
 jobs:
   ping:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        # Add a unique identifier suffix for each database here
+        id: [1, 2] 
     steps:
-      - name: Ping Supabase Database
+      - name: Ping Supabase REST API
         run: |
-          curl -X GET "${{ secrets.SUPABASE_URL }}/rest/v1/keep_alive?select=id&limit=1" \
-          -H "apikey: ${{ secrets.SUPABASE_KEY }}" \
-          -H "Authorization: Bearer ${{ secrets.SUPABASE_KEY }}"
+          # Dynamically fetch the numbered secrets based on the matrix ID
+          URL_SECRET="SUPABASE_URL_${{ matrix.id }}"
+          KEY_SECRET="SUPABASE_ANON_KEY_${{ matrix.id }}"
+          
+          URL="${!URL_SECRET}"
+          KEY="${!KEY_SECRET}"
+
+          curl -i -X GET "${URL}/rest/v1/" \
+            -H "apikey: ${KEY}" \
+            -H "Authorization: Bearer ${KEY}"
