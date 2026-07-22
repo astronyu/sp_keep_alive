@@ -2,76 +2,26 @@ name: Keep Multiple Supabase Projects Alive
 
 on:
   schedule:
-    - cron: "0 0 * * 2,5"
+    - cron: '0 0 * * 2,5'
   workflow_dispatch:
 
 jobs:
-  ping-project-1:
-    name: Ping Supabase Project 1
+  ping:
     runs-on: ubuntu-latest
-
+    strategy:
+      matrix:
+        # Add a unique identifier suffix for each database here
+        id: [1, 2] 
     steps:
-      - name: Check required secrets
-        env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL_1 }}
-          SUPABASE_KEY: ${{ secrets.SUPABASE_ANON_KEY_1 }}
+      - name: Ping Supabase REST API
         run: |
-          if [ -z "$SUPABASE_URL" ]; then
-            echo "Error: SUPABASE_URL_1 is unavailable."
-            exit 1
-          fi
+          # Dynamically fetch the numbered secrets based on the matrix ID
+          URL_SECRET="SUPABASE_URL_${{ matrix.id }}"
+          KEY_SECRET="SUPABASE_ANON_KEY_${{ matrix.id }}"
+          
+          URL="${!URL_SECRET}"
+          KEY="${!KEY_SECRET}"
 
-          if [ -z "$SUPABASE_KEY" ]; then
-            echo "Error: SUPABASE_ANON_KEY_1 is unavailable."
-            exit 1
-          fi
-
-          echo "Project 1 secrets are available."
-
-      - name: Ping Supabase Project 1
-        env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL_1 }}
-          SUPABASE_KEY: ${{ secrets.SUPABASE_ANON_KEY_1 }}
-        run: |
-          curl --fail-with-body --silent --show-error \
-            "${SUPABASE_URL}/rest/v1/keep_alive?select=id&limit=1" \
-            -H "apikey: ${SUPABASE_KEY}" \
-            -H "Authorization: Bearer ${SUPABASE_KEY}"
-
-          echo
-          echo "Project 1 ping successful."
-
-  ping-project-2:
-    name: Ping Supabase Project 2
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Check required secrets
-        env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL_2 }}
-          SUPABASE_KEY: ${{ secrets.SUPABASE_ANON_KEY_2 }}
-        run: |
-          if [ -z "$SUPABASE_URL" ]; then
-            echo "Error: SUPABASE_URL_2 is unavailable."
-            exit 1
-          fi
-
-          if [ -z "$SUPABASE_KEY" ]; then
-            echo "Error: SUPABASE_ANON_KEY_2 is unavailable."
-            exit 1
-          fi
-
-          echo "Project 2 secrets are available."
-
-      - name: Ping Supabase Project 2
-        env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL_2 }}
-          SUPABASE_KEY: ${{ secrets.SUPABASE_ANON_KEY_2 }}
-        run: |
-          curl --fail-with-body --silent --show-error \
-            "${SUPABASE_URL}/rest/v1/keep_alive?select=id&limit=1" \
-            -H "apikey: ${SUPABASE_KEY}" \
-            -H "Authorization: Bearer ${SUPABASE_KEY}"
-
-          echo
-          echo "Project 2 ping successful."
+          curl -i -X GET "${URL}/rest/v1/" \
+            -H "apikey: ${KEY}" \
+            -H "Authorization: Bearer ${KEY}"
