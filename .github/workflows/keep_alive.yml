@@ -2,8 +2,9 @@ name: Keep Multiple Supabase Projects Alive
 
 on:
   schedule:
-    # Runs at 00:00 UTC every Tuesday and Friday
-    - cron: "0 0 * * 2,5"
+    # Run 3 times daily to maintain sufficient database activity on Supabase Free projects.
+    # 00:00, 08:00 and 16:00 UTC = 08:00, 16:00 and 00:00 MYT.
+    - cron: "0 0,8,16 * * *"
 
   workflow_dispatch:
 
@@ -38,6 +39,11 @@ jobs:
           curl --fail-with-body \
             --silent \
             --show-error \
+            --retry 3 \
+            --retry-all-errors \
+            --retry-delay 10 \
+            --connect-timeout 15 \
+            --max-time 30 \
             --request GET \
             "${SUPABASE_URL}/rest/v1/keep_alive?select=id&limit=1" \
             --header "apikey: ${SUPABASE_KEY}" \
