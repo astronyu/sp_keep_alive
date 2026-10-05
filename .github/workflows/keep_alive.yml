@@ -36,7 +36,7 @@ jobs:
 
           echo "Pinging Supabase project ${{ matrix.id }}..."
 
-          curl --fail-with-body \
+          curl \
             --silent \
             --show-error \
             --retry 3 \
